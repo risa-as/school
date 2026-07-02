@@ -1,0 +1,42 @@
+version: "3.9"
+
+# Local dev infrastructure for the School ERP monorepo.
+# Start with: docker compose up -d
+# No migrations are run automatically — apps/api developer runs `pnpm prisma migrate dev` explicitly.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: school-erp-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: school
+      POSTGRES_PASSWORD: school
+      POSTGRES_DB: school_erp
+    ports:
+      - "5432:5432"
+    volumes:
+      - school_erp_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U school -d school_erp"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: school-erp-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - school_erp_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  school_erp_postgres_data:
+  school_erp_redis_data:

@@ -1,0 +1,280 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ==========================================================================
+   Design tokens — mirrors docs/DESIGN_SYSTEM.md §6.1 exactly.
+   Never hand-pick a hex in a component; add it to DESIGN_SYSTEM.md first.
+   ========================================================================== */
+:root {
+  --radius: 0.75rem;
+
+  /* base surfaces */
+  --background: #fafaf9;
+  --foreground: #1c1917;
+  --card: #ffffff;
+  --card-foreground: #1c1917;
+  --popover: #ffffff;
+  --popover-foreground: #1c1917;
+
+  /* brand */
+  --primary: #0d6e7d;
+  --primary-foreground: #ffffff;
+  --secondary: #f5f5f4;
+  --secondary-foreground: #292524;
+
+  /* neutrals */
+  --muted: #f5f5f4;
+  --muted-foreground: #57534e; /* stone-600: safe on --muted; stone-500 (#78716c) only directly on --background */
+  --accent: #eefafb;
+  --accent-foreground: #0d6e7d;
+
+  /* semantic */
+  --destructive: #c31e1e;
+  --destructive-foreground: #ffffff;
+  --destructive-soft: #fef0ef;
+  --success: #15803d;
+  --success-foreground: #ffffff;
+  --success-soft: #effbf3;
+  --warning: #a15c00;
+  --warning-foreground: #ffffff;
+  --warning-soft: #fef6e7;
+  --info: #1d4ed8;
+  --info-foreground: #ffffff;
+  --info-soft: #ebf1fe;
+
+  /* chrome */
+  --border: #e7e5e4;
+  --input: #e7e5e4;
+  --ring: #1d8d98;
+
+  /* charts (dataviz palette — separate hue set from the brand primary) */
+  --chart-1: #2a78d6;
+  --chart-2: #1baf7a;
+  --chart-3: #eda100;
+  --chart-4: #008300;
+  --chart-5: #4a3aa7;
+  --chart-6: #e34948;
+  --chart-7: #e87ba4;
+  --chart-8: #eb6834;
+
+  /* sidebar (inline-start edge: right in ar/ckb, left in en) */
+  --sidebar: #ffffff;
+  --sidebar-foreground: #1c1917;
+  --sidebar-primary: #0d6e7d;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f5f5f4;
+  --sidebar-accent-foreground: #292524;
+  --sidebar-border: #e7e5e4;
+  --sidebar-ring: #1d8d98;
+
+  /* shadows (dark mode: elevation comes from surface step + border, not shadow) */
+  --elevation-sm: 0 1px 2px 0 rgb(28 25 23 / 0.05);
+  --elevation-md: 0 2px 8px -2px rgb(28 25 23 / 0.08), 0 1px 2px -1px rgb(28 25 23 / 0.06);
+  --elevation-lg: 0 8px 24px -6px rgb(28 25 23 / 0.12), 0 2px 6px -2px rgb(28 25 23 / 0.06);
+
+  /* fonts — Arabic-script first (ar is the default locale); Latin fallback
+     catches embedded English/brand names inside ar/ckb copy */
+  --font-base: var(--font-noto-sans-arabic), var(--font-inter), ui-sans-serif, system-ui,
+    sans-serif;
+}
+
+.dark {
+  --background: #0c0a09;
+  --foreground: #fafaf9;
+  --card: #1c1917;
+  --card-foreground: #fafaf9;
+  --popover: #1c1917;
+  --popover-foreground: #fafaf9;
+
+  --primary: #14808f;
+  --primary-foreground: #ffffff;
+  --secondary: #292524;
+  --secondary-foreground: #f5f5f4;
+
+  --muted: #292524;
+  --muted-foreground: #a8a29e;
+  --accent: #073e46;
+  --accent-foreground: #a8e2e6;
+
+  --destructive: #f87171;
+  --destructive-foreground: #0c0a09;
+  --destructive-soft: #2a1414;
+  --success: #22c55e;
+  --success-foreground: #0c0a09;
+  --success-soft: #12241a;
+  --warning: #f5a524;
+  --warning-foreground: #0c0a09;
+  --warning-soft: #2a2013;
+  --info: #60a5fa;
+  --info-foreground: #0c0a09;
+  --info-soft: #16233a;
+
+  --border: #292524;
+  --input: #292524;
+  --ring: #14808f;
+
+  --chart-1: #3987e5;
+  --chart-2: #199e70;
+  --chart-3: #c98500;
+  --chart-4: #008300;
+  --chart-5: #9085e9;
+  --chart-6: #e66767;
+  --chart-7: #d55181;
+  --chart-8: #d95926;
+
+  --sidebar: #1c1917;
+  --sidebar-foreground: #fafaf9;
+  --sidebar-primary: #14808f;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #292524;
+  --sidebar-accent-foreground: #f5f5f4;
+  --sidebar-border: #292524;
+  --sidebar-ring: #14808f;
+
+  --elevation-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
+  --elevation-md: 0 2px 8px -2px rgb(0 0 0 / 0.35);
+  --elevation-lg: 0 8px 24px -6px rgb(0 0 0 / 0.45);
+}
+
+/* English pages lead with Inter (better Latin hinting), still falling back to
+   Noto Sans Arabic for Arabic-script content inside an English screen (§3.1). */
+html[lang="en"] {
+  --font-base: var(--font-inter), var(--font-noto-sans-arabic), ui-sans-serif, system-ui,
+    sans-serif;
+}
+
+/* ==========================================================================
+   Per-size type scale line-heights (DESIGN_SYSTEM §3.2).
+   Tailwind's `text-*` utilities set font-size AND line-height together via
+   `line-height: var(--tw-leading, var(--text-*--line-height))` — they don't
+   inherit the body's line-height, so a blanket `body { line-height }` rule
+   never reaches a `text-xl`/`text-2xl`/etc. element. Overriding the
+   `--text-*--line-height` custom properties themselves fixes every current
+   and future use of those utilities in one place, matching CLAUDE.md's "no
+   hand-picked value per component" rule.
+
+   These declarations are plain (unlayered) rules, and Tailwind's own
+   defaults for these tokens ship inside `@layer theme` — per the CSS
+   cascade-layers spec, ANY unlayered normal-priority rule beats ANY layered
+   one regardless of selector specificity, so this reliably overrides
+   Tailwind's Latin-tuned defaults without `!important`.
+
+   `ar` is the default locale, so the Arabic/Kurdish column lives at `:root`;
+   `html[lang="en"]` overrides to the tighter Latin column. `ckb` behaves
+   exactly like `ar` here (§4: "Kurdish behaves exactly like Arabic
+   layout-wise"), so it needs no separate selector — it simply never matches
+   the `html[lang="en"]` override.
+
+   Values are the exact §3.2 table (not the doc's illustrative `--lh-scale`
+   0.88 shortcut — that multiplier doesn't reproduce every table cell
+   exactly, e.g. it would give text-2xl/en = 1.364, not the table's 1.35). */
+:root {
+  --text-xs--line-height: 1.7;
+  --text-sm--line-height: 1.7;
+  --text-base--line-height: 1.75;
+  --text-lg--line-height: 1.7;
+  --text-xl--line-height: 1.6;
+  --text-2xl--line-height: 1.55;
+  --text-3xl--line-height: 1.5;
+  --text-4xl--line-height: 1.4;
+}
+
+html[lang="en"] {
+  --text-xs--line-height: 1.5;
+  --text-sm--line-height: 1.5;
+  --text-base--line-height: 1.55;
+  --text-lg--line-height: 1.5;
+  --text-xl--line-height: 1.4;
+  --text-2xl--line-height: 1.35;
+  --text-3xl--line-height: 1.3;
+  --text-4xl--line-height: 1.2;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-destructive-soft: var(--destructive-soft);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-warning-soft: var(--warning-soft);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --color-info-soft: var(--info-soft);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-chart-6: var(--chart-6);
+  --color-chart-7: var(--chart-7);
+  --color-chart-8: var(--chart-8);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --shadow-sm: var(--elevation-sm);
+  --shadow-md: var(--elevation-md);
+  --shadow-lg: var(--elevation-lg);
+
+  --font-sans: var(--font-base);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    /* Arabic-tuned line-height (DESIGN_SYSTEM §3.2) — ar/ckb need more vertical room */
+    line-height: 1.75;
+  }
+
+  html[lang="en"] body {
+    line-height: 1.55;
+  }
+
+  /* Numerals rule (§3.3): render Western digits (0-9) app-wide, overriding the
+     browser's ar/ckb default of Eastern Arabic-Indic digits. */
+  html[lang="ar"],
+  html[lang="ckb"] {
+    font-variant-numeric: normal;
+  }
+
+  /* Bidi safety (§3.3): numbers + currency embedded in RTL sentences stay readable. */
+  bdi {
+    unicode-bidi: isolate;
+  }
+}

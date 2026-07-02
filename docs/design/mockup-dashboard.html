@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>لوحة التحكم — مدرسة النور الأهلية</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* ============================================================
+     DESIGN TOKENS — mirrors docs/DESIGN_SYSTEM.md §6.1 exactly
+     ============================================================ */
+  :root {
+    --radius: 0.75rem;
+    --radius-sm: calc(var(--radius) - 4px);
+    --radius-md: calc(var(--radius) - 2px);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) + 4px);
+
+    --background: #fafaf9;
+    --foreground: #1c1917;
+    --card: #ffffff;
+    --card-foreground: #1c1917;
+    --popover: #ffffff;
+
+    --primary: #0D6E7D;
+    --primary-foreground: #ffffff;
+    --secondary: #f5f5f4;
+    --secondary-foreground: #292524;
+
+    --muted: #f5f5f4;
+    --muted-foreground: #57534e;
+    --muted-foreground-onbase: #78716c;
+    --accent: #EEFAFB;
+    --accent-foreground: #0D6E7D;
+
+    --destructive: #C31E1E;
+    --destructive-soft: #FEF0EF;
+    --destructive-foreground: #ffffff;
+    --success: #15803D;
+    --success-soft: #EFFBF3;
+    --success-foreground: #ffffff;
+    --warning: #A15C00;
+    --warning-soft: #FEF6E7;
+    --warning-foreground: #ffffff;
+    --info: #1D4ED8;
+    --info-soft: #EBF1FE;
+    --info-foreground: #ffffff;
+
+    --border: #e7e5e4;
+    --input: #e7e5e4;
+    --ring: #1D8D98;
+
+    --chart-blue: #2a78d6;
+
+    --sidebar: #ffffff;
+    --sidebar-foreground: #1c1917;
+    --sidebar-accent: #f5f5f4;
+    --sidebar-border: #e7e5e4;
+
+    --shadow-sm: 0 1px 2px 0 rgb(28 25 23 / 0.05);
+    --shadow-md: 0 2px 8px -2px rgb(28 25 23 / 0.08), 0 1px 2px -1px rgb(28 25 23 / 0.06);
+    --shadow-lg: 0 8px 24px -6px rgb(28 25 23 / 0.12), 0 2px 6px -2px rgb(28 25 23 / 0.06);
+
+    --font-sans: "Noto Sans Arabic", "Inter", ui-sans-serif, system-ui, sans-serif;
+  }
+
+  html.dark {
+    --background: #0c0a09;
+    --foreground: #fafaf9;
+    --card: #1c1917;
+    --card-foreground: #fafaf9;
+    --popover: #1c1917;
+
+    --primary: #14808F;
+    --primary-foreground: #ffffff;
+    --secondary: #292524;
+    --secondary-foreground: #f5f5f4;
+
+    --muted: #292524;
+    --muted-foreground: #a8a29e;
+    --muted-foreground-onbase: #a8a29e;
+    --accent: #073E46;
+    --accent-foreground: #A8E2E6;
+
+    --destructive: #F87171;
+    --destructive-soft: #2a1414;
+    --destructive-foreground: #0c0a09;
+    --success: #22C55E;
+    --success-soft: #12241a;
+    --success-foreground: #0c0a09;
+    --warning: #F5A524;
+    --warning-soft: #2a2013;
+    --warning-foreground: #0c0a09;
+    --info: #60A5FA;
+    --info-soft: #16233a;
+    --info-foreground: #0c0a09;
+
+    --border: #292524;
+    --input: #292524;
+    --ring: #14808F;
+
+    --chart-blue: #3987e5;
+
+    --sidebar: #1c1917;
+    --sidebar-foreground: #fafaf9;
+    --sidebar-accent: #292524;
+    --sidebar-border: #292524;
+
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
+    --shadow-md: 0 2px 8px -2px rgb(0 0 0 / 0.35);
+    --shadow-lg: 0 8px 24px -6px rgb(0 0 0 / 0.45);
+  }
+
+  /* ============================================================
+     BASE
+     ============================================================ */
+  * { box-sizing: border-box; }
+  html { color-scheme: light; }
+  html.dark { color-scheme: dark; }
+  body {
+    margin: 0;
+    font-family: var(--font-sans);
+    background: var(--background);
+    color: var(--foreground);
+    font-size: 15px;
+    line-height: 1.75; /* Arabic-tuned line-height, DESIGN_SYSTEM §3.2 */
+    -webkit-font-smoothing: antialiased;
+    transition: background-color .2s ease, color .2s ease;
+  }
+  bdi { unicode-bidi: isolate; }
+  h1, h2, h3, p { margin: 0; }
+  button { font-family: inherit; }
+  svg { display: block; flex-shrink: 0; }
+
+  /* ============================================================
+     SHELL
+     ============================================================ */
+  .shell {
+    display: flex;
+    min-height: 100vh;
+  }
+
+  /* Sidebar is the FIRST child of .shell in source order, so in a plain
+     `flex-direction: row` container it lands at the flex main-start —
+     which equals inline-start — which is the RIGHT edge under dir="rtl".
+     No `order` hack needed; flipping <html dir="ltr"> alone re-mirrors this
+     to the left edge automatically. */
+  .sidebar {
+    width: 264px;
+    flex-shrink: 0;
+    background: var(--sidebar);
+    border-inline-end: 1px solid var(--sidebar-border);
+    display: flex;
+    flex-direction: column;
+    padding: 1.25rem 1rem;
+  }
+  .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 0.5rem 1.25rem;
+    border-block-end: 1px solid var(--border);
+    margin-block-end: 1rem;
+  }
+  .brand-mark {
+    width: 40px; height: 40px; border-radius: var(--radius-md);
+    background: var(--primary); color: var(--primary-foreground);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 17px; flex-shrink: 0;
+  }
+  .brand-text h1 { font-size: 15px; font-weight: 700; }
+  .brand-text p { font-size: 12px; color: var(--muted-foreground-onbase); margin-block-start: 2px; }
+
+  nav.nav { display: flex; flex-direction: column; gap: 2px; flex: 1; }
+  .nav-item {
+    display: flex; align-items: center; gap: 0.65rem;
+    padding: 0.6rem 0.75rem;
+    border-radius: var(--radius-md);
+    color: var(--muted-foreground);
+    font-size: 13.5px; font-weight: 500;
+    text-decoration: none;
+    cursor: pointer;
+    border: none; background: transparent; width: 100%; text-align: start;
+  }
+  .nav-item svg { width: 19px; height: 19px; color: var(--muted-foreground-onbase); }
+  .nav-item:hover { background: var(--muted); color: var(--foreground); }
+  .nav-item.active { background: var(--accent); color: var(--accent-foreground); font-weight: 600; }
+  .nav-item.active svg { color: var(--accent-foreground); }
+  .nav-section-label {
+    font-size: 11px; font-weight: 600; color: var(--muted-foreground-onbase);
+    text-transform: uppercase; letter-spacing: .04em;
+    padding: 1rem 0.75rem 0.35rem;
+  }
+
+  .sidebar-footer {
+    border-block-start: 1px solid var(--border);
+    padding-block-start: 0.75rem; margin-block-start: 0.5rem;
+    display: flex; align-items: center; gap: 0.6rem;
+  }
+  .avatar {
+    width: 34px; height: 34px; border-radius: 50%;
+    background: var(--secondary); color: var(--secondary-foreground);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700; flex-shrink: 0;
+  }
+  .sidebar-footer .who { min-width: 0; }
+  .sidebar-footer .who p:first-child { font-size: 13px; font-weight: 600; }
+  .sidebar-footer .who p:last-child { font-size: 11.5px; color: var(--muted-foreground-onbase); }
+
+  /* ============================================================
+     TOPBAR
+     ============================================================ */
+  .topbar {
+    display: flex; align-items: center; gap: 1rem;
+    padding: 0.9rem 1.75rem;
+    border-block-end: 1px solid var(--border);
+    background: var(--card);
+    position: sticky; top: 0; z-index: 10;
+  }
+  .topbar h2 { font-size: 17px; font-weight: 700; white-space: nowrap; }
+  .topbar .path { font-size: 12.5px; color: var(--muted-foreground-onbase); margin-block-start: 2px; }
+
+  .search-box {
+    flex: 1; max-width: 380px;
+    display: flex; align-items: center; gap: 0.5rem;
+    background: var(--muted); border-radius: var(--radius-md);
+    padding: 0.5rem 0.75rem; color: var(--muted-foreground);
+  }
+  .search-box svg { width: 16px; height: 16px; }
+  .search-box input {
+    border: none; background: transparent; outline: none; width: 100%;
+    font-family: inherit; font-size: 13px; color: var(--foreground);
+  }
+  /* placeholder sits on the search box's --muted fill, not the base surface —
+     must use --muted-foreground (stone-600, 6.99:1), not the lighter onbase
+     value (stone-500 drops to 4.40:1 on a muted fill, below AA — DESIGN_SYSTEM §5.1) */
+  .search-box input::placeholder { color: var(--muted-foreground); }
+
+  .topbar-actions { display: flex; align-items: center; gap: 0.4rem; margin-inline-start: auto; }
+  .icon-btn {
+    width: 38px; height: 38px; border-radius: var(--radius-md);
+    display: flex; align-items: center; justify-content: center;
+    background: transparent; border: 1px solid transparent; cursor: pointer;
+    color: var(--muted-foreground); position: relative;
+  }
+  .icon-btn:hover { background: var(--muted); border-color: var(--border); }
+  .icon-btn svg { width: 19px; height: 19px; }
+  .badge-dot {
+    position: absolute; top: 6px; inset-inline-end: 6px;
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--destructive); border: 2px solid var(--card);
+  }
+
+  /* Language switcher — <details> = no JS required, keyboard accessible */
+  .lang-switch { position: relative; }
+  .lang-switch summary { list-style: none; }
+  .lang-switch summary::-webkit-details-marker { display: none; }
+  .lang-switch[open] .icon-btn { background: var(--muted); border-color: var(--border); }
+  .lang-menu {
+    position: absolute; top: calc(100% + 6px); inset-inline-end: 0;
+    background: var(--popover); border: 1px solid var(--border);
+    border-radius: var(--radius-md); box-shadow: var(--shadow-lg);
+    min-width: 168px; padding: 6px; z-index: 20;
+  }
+  .lang-menu button {
+    display: flex; align-items: center; justify-content: space-between;
+    width: 100%; padding: 0.5rem 0.6rem; border-radius: var(--radius-sm);
+    border: none; background: transparent; cursor: pointer;
+    font-size: 13px; color: var(--foreground); text-align: start;
+  }
+  .lang-menu button:hover { background: var(--muted); }
+  .lang-menu button.current { color: var(--primary); font-weight: 600; }
+  .lang-menu .check { width: 14px; height: 14px; color: var(--primary); }
+
+  .avatar-btn { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; padding-inline-start: 0.4rem; border-inline-start: 1px solid var(--border); }
+
+  /* ============================================================
+     CONTENT
+     ============================================================ */
+  .content { padding: 1.5rem 1.75rem 2.5rem; display: flex; flex-direction: column; gap: 1.5rem; }
+
+  .page-heading { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: .5rem; }
+  .page-heading h1 { font-size: 22px; font-weight: 700; }
+  .page-heading .today { font-size: 13px; color: var(--muted-foreground-onbase); }
+
+  /* ---- KPI row ---- */
+  .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+  .kpi-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius-lg); padding: 1.1rem 1.15rem;
+    box-shadow: var(--shadow-sm);
+    display: flex; flex-direction: column; gap: 0.6rem;
+  }
+  .kpi-top { display: flex; align-items: center; justify-content: space-between; }
+  .kpi-icon {
+    width: 34px; height: 34px; border-radius: var(--radius-md);
+    background: var(--muted); color: var(--muted-foreground);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .kpi-icon svg { width: 17px; height: 17px; }
+  .kpi-label { font-size: 13px; color: var(--muted-foreground); font-weight: 500; }
+  .kpi-value { font-size: 26px; font-weight: 700; letter-spacing: -0.01em; }
+  .kpi-bottom { display: flex; align-items: center; justify-content: space-between; }
+  .kpi-delta { display: inline-flex; align-items: center; gap: 3px; font-size: 12.5px; font-weight: 600; }
+  .kpi-delta svg { width: 13px; height: 13px; }
+  .kpi-delta.up { color: var(--success); }
+  .kpi-delta.down { color: var(--destructive); }
+  .kpi-delta.neutral { color: var(--muted-foreground-onbase); font-weight: 500; }
+  .kpi-period { font-size: 11.5px; color: var(--muted-foreground-onbase); }
+  .sparkline { color: var(--muted-foreground-onbase); }
+  .sparkline .accent-pt { color: var(--success); }
+  .sparkline.info-pt .accent-pt { color: var(--primary); }
+
+  /* ---- two-column panels ---- */
+  .panels { display: grid; grid-template-columns: minmax(0,1.6fr) minmax(0,1fr); gap: 1.25rem; align-items: start; }
+  .panel {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius-lg); box-shadow: var(--shadow-sm);
+    overflow: hidden;
+  }
+  .panel-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 1rem 1.15rem; border-block-end: 1px solid var(--border);
+  }
+  .panel-head h3 { font-size: 14.5px; font-weight: 700; }
+  .panel-head a { font-size: 12.5px; color: var(--primary); font-weight: 600; text-decoration: none; }
+
+  /* ---- students table ---- */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead th {
+    text-align: start; font-size: 11.5px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: .03em; color: var(--muted-foreground);
+    background: var(--muted); padding: 0.65rem 1.1rem; white-space: nowrap;
+  }
+  thead th.num, td.num { text-align: end; }
+  tbody td { padding: 0.7rem 1.1rem; border-block-end: 1px solid var(--border); vertical-align: middle; }
+  tbody tr:last-child td { border-block-end: none; }
+  tbody tr:hover { background: var(--accent); }
+  .student-cell { display: flex; align-items: center; gap: 0.6rem; }
+  .student-cell .avatar { width: 28px; height: 28px; font-size: 11px; }
+  .student-name { font-weight: 600; }
+  .student-sub { font-size: 11.5px; color: var(--muted-foreground-onbase); }
+  .attendance-num { font-variant-numeric: tabular-nums; font-weight: 600; }
+
+  .pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 0.3rem 0.6rem; border-radius: 999px;
+    font-size: 11.5px; font-weight: 600;
+  }
+  .pill svg { width: 12px; height: 12px; }
+  .pill.paid { background: var(--success-soft); color: var(--success); }
+  .pill.due { background: var(--warning-soft); color: var(--warning); }
+  .pill.overdue { background: var(--destructive-soft); color: var(--destructive); }
+
+  .row-actions { display: flex; gap: 4px; justify-content: flex-end; }
+  .row-actions button {
+    width: 28px; height: 28px; border-radius: var(--radius-sm);
+    border: 1px solid transparent; background: transparent; color: var(--muted-foreground-onbase);
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+  }
+  .row-actions button:hover { background: var(--muted); color: var(--foreground); }
+  .row-actions svg { width: 15px; height: 15px; }
+
+  /* ---- activity list ---- */
+  .activity-list { display: flex; flex-direction: column; }
+  .activity-item {
+    display: flex; gap: 0.7rem; padding: 0.85rem 1.15rem;
+    border-block-end: 1px solid var(--border);
+  }
+  .activity-item:last-child { border-block-end: none; }
+  .activity-dot {
+    width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .activity-dot svg { width: 15px; height: 15px; }
+  .activity-dot.success { background: var(--success-soft); color: var(--success); }
+  .activity-dot.info { background: var(--info-soft); color: var(--info); }
+  .activity-dot.warning { background: var(--warning-soft); color: var(--warning); }
+  .activity-body p { font-size: 13px; line-height: 1.6; }
+  .activity-body time { font-size: 11.5px; color: var(--muted-foreground-onbase); margin-block-start: 2px; display: block; }
+  .money { font-weight: 700; }
+
+  footer.mockup-note {
+    text-align: center; font-size: 11.5px; color: var(--muted-foreground-onbase);
+    padding: 1.5rem; border-block-start: 1px solid var(--border);
+  }
+
+  @media (max-width: 1180px) {
+    .kpi-row { grid-template-columns: repeat(2, 1fr); }
+    .panels { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 860px) {
+    .sidebar { display: none; }
+    .search-box { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- ============ SIDEBAR — first DOM child so `flex-direction: row` places it
+       at the flex main-start = inline-start = RIGHT edge under dir="rtl".
+       Flipping <html dir="ltr"> alone re-mirrors it to the left, no JS/order needed. ============ -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">ن</div>
+      <div class="brand-text">
+        <h1>مدرسة النور الأهلية</h1>
+        <p>نظام إدارة المدرسة — ديوان</p>
+      </div>
+    </div>
+
+    <nav class="nav">
+      <button class="nav-item active">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+        لوحة التحكم
+      </button>
+      <button class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="10" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        الطلبة
+      </button>
+      <button class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="m9 16 2 2 4-4"/></svg>
+        الحضور
+      </button>
+      <button class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20v-6M6 20V10M18 20V4"/></svg>
+        الدرجات
+      </button>
+      <button class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M6 15h4"/></svg>
+        الرسوم
+      </button>
+      <button class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 7 10 6 10-6"/></svg>
+        الرسائل
+      </button>
+
+      <div class="nav-section-label">النظام</div>
+      <button class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h10M4 18h6"/><circle cx="18" cy="18" r="2.5"/></svg>
+        الإعدادات
+      </button>
+      <button class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 1.5-2 2-2.5 3.2M12 17h.01"/></svg>
+        المساعدة والدعم
+      </button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="avatar">أج</div>
+      <div class="who">
+        <p>الأستاذ أحمد الجبوري</p>
+        <p>مدير المدرسة</p>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ============ MAIN ============ -->
+  <div class="main">
+
+    <!-- ---------- TOPBAR ---------- -->
+    <header class="topbar">
+      <div>
+        <h2>لوحة التحكم</h2>
+        <p class="path">الرئيسية / لوحة التحكم</p>
+      </div>
+
+      <div class="search-box">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        <input type="text" placeholder="ابحث عن طالب، معلم، أو رقم إيصال…">
+      </div>
+
+      <div class="topbar-actions">
+
+        <!-- dark mode toggle -->
+        <button class="icon-btn" onclick="document.documentElement.classList.toggle('dark')" title="تبديل الوضع الليلي" aria-label="تبديل الوضع الليلي">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.5A8.5 8.5 0 1 1 11.5 3a7 7 0 0 0 9.5 9.5Z"/></svg>
+        </button>
+
+        <!-- language switcher: globe icon -> العربية / کوردی / English -->
+        <details class="lang-switch">
+          <summary>
+            <span class="icon-btn" title="اللغة / Language" aria-label="تغيير اللغة">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.8 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.8-3.8-9s1.3-6.4 3.8-9Z"/></svg>
+            </span>
+          </summary>
+          <div class="lang-menu">
+            <button class="current">العربية
+              <svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+            </button>
+            <button>کوردی (سۆرانی)</button>
+            <button>English</button>
+          </div>
+        </details>
+
+        <button class="icon-btn" title="الإشعارات" aria-label="الإشعارات">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+          <span class="badge-dot"></span>
+        </button>
+
+        <div class="avatar-btn">
+          <div class="avatar">أج</div>
+        </div>
+      </div>
+    </header>
+
+    <!-- ---------- CONTENT ---------- -->
+    <main class="content">
+
+      <div class="page-heading">
+        <h1>مرحباً، الأستاذ أحمد الجبوري</h1>
+        <span class="today">الخميس، ٢ تموز ٢٠٢٦ — العام الدراسي ٢٠٢٥ / ٢٠٢٦</span>
+      </div>
+
+      <!-- ---------- KPI ROW ----------
+           Color discipline (DESIGN_SYSTEM §5.5): cards stay neutral;
+           color lives only on the delta, and only where direction has
+           a value judgement. الطلبة و الرسائل = neutral counts. -->
+      <section class="kpi-row">
+
+        <!-- 1. الطلبة — neutral count, no delta color -->
+        <div class="kpi-card">
+          <div class="kpi-top">
+            <span class="kpi-label">الطلبة</span>
+            <span class="kpi-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="10" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </span>
+          </div>
+          <div class="kpi-value"><bdi dir="ltr">1,284</bdi></div>
+          <div class="kpi-bottom">
+            <span class="kpi-delta neutral">+<bdi dir="ltr">12</bdi> هذا الشهر</span>
+            <svg class="sparkline" width="52" height="20" viewBox="0 0 52 20" fill="none">
+              <polyline points="0,14 8,15 16,11 24,12 32,8 40,9 44,7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle class="accent-pt" cx="44" cy="7" r="2.5" fill="currentColor"/>
+            </svg>
+          </div>
+        </div>
+
+        <!-- 2. الحضور اليوم — delta colored: today's rate vs trailing average -->
+        <div class="kpi-card">
+          <div class="kpi-top">
+            <span class="kpi-label">الحضور اليوم</span>
+            <span class="kpi-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="m9 16 2 2 4-4"/></svg>
+            </span>
+          </div>
+          <div class="kpi-value"><bdi dir="ltr">94.2%</bdi></div>
+          <div class="kpi-bottom">
+            <span class="kpi-delta up">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+              <bdi dir="ltr">2.1%</bdi> عن المعدل
+            </span>
+            <svg class="sparkline" width="52" height="20" viewBox="0 0 52 20" fill="none">
+              <polyline points="0,10 8,12 16,13 24,9 32,10 40,6 44,4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle class="accent-pt" cx="44" cy="4" r="2.5" fill="currentColor" style="color:var(--success)"/>
+            </svg>
+          </div>
+        </div>
+
+        <!-- 3. الأقساط المحصلة — delta colored: collected vs comparison period -->
+        <div class="kpi-card">
+          <div class="kpi-top">
+            <span class="kpi-label">الأقساط المحصلة</span>
+            <span class="kpi-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M6 15h4"/></svg>
+            </span>
+          </div>
+          <div class="kpi-value"><bdi dir="ltr">42,350,000</bdi> <span style="font-size:14px;font-weight:600;color:var(--muted-foreground-onbase)">د.ع</span></div>
+          <div class="kpi-bottom">
+            <span class="kpi-delta up">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+              <bdi dir="ltr">8.4%</bdi> عن الشهر الماضي
+            </span>
+            <svg class="sparkline" width="52" height="20" viewBox="0 0 52 20" fill="none">
+              <polyline points="0,16 8,13 16,14 24,10 32,11 40,7 44,5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle class="accent-pt" cx="44" cy="5" r="2.5" fill="currentColor" style="color:var(--success)"/>
+            </svg>
+          </div>
+        </div>
+
+        <!-- 4. الرسائل — neutral count; unread badge uses info tint, not success/danger -->
+        <div class="kpi-card">
+          <div class="kpi-top">
+            <span class="kpi-label">الرسائل غير المقروءة</span>
+            <span class="kpi-icon" style="background:var(--info-soft); color:var(--info)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 7 10 6 10-6"/></svg>
+            </span>
+          </div>
+          <div class="kpi-value"><bdi dir="ltr">8</bdi></div>
+          <div class="kpi-bottom">
+            <span class="kpi-delta neutral">من <bdi dir="ltr">5</bdi> أولياء أمور</span>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ---------- PANELS: activity + students table ---------- -->
+      <section class="panels">
+
+        <!-- students table (wider column) -->
+        <div class="panel">
+          <div class="panel-head">
+            <h3>الطلبة — الصف السادس أ</h3>
+            <a href="#">عرض كل الطلبة ←</a>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>الطالب</th>
+                <th>الشعبة</th>
+                <th class="num">نسبة الحضور</th>
+                <th>حالة الرسوم</th>
+                <th class="num">الإجراءات</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  <div class="student-cell">
+                    <div class="avatar">ع ح</div>
+                    <div>
+                      <div class="student-name">علي حسين الكناني</div>
+                      <div class="student-sub">رقم القيد: <bdi dir="ltr">2025-0142</bdi></div>
+                    </div>
+                  </div>
+                </td>
+                <td>السادس أ</td>
+                <td class="num"><span class="attendance-num" style="color:var(--success)"><bdi dir="ltr">97%</bdi></span></td>
+                <td><span class="pill paid"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>مدفوع</span></td>
+                <td class="num">
+                  <div class="row-actions">
+                    <button title="عرض"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"/><circle cx="12" cy="12" r="3"/></svg></button>
+                    <button title="المزيد"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/></svg></button>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <div class="student-cell">
+                    <div class="avatar">ز م</div>
+                    <div>
+                      <div class="student-name">زينب مهدي العبودي</div>
+                      <div class="student-sub">رقم القيد: <bdi dir="ltr">2025-0143</bdi></div>
+                    </div>
+                  </div>
+                </td>
+                <td>السادس أ</td>
+                <td class="num"><span class="attendance-num" style="color:var(--success)"><bdi dir="ltr">100%</bdi></span></td>
+                <td><span class="pill due"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>مستحق</span></td>
+                <td class="num">
+                  <div class="row-actions">
+                    <button title="عرض"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"/><circle cx="12" cy="12" r="3"/></svg></button>
+                    <button title="المزيد"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/></svg></button>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <div class="student-cell">
+                    <div class="avatar">ي د</div>
+                    <div>
+                      <div class="student-name">يوسف كريم الدليمي</div>
+                      <div class="student-sub">رقم القيد: <bdi dir="ltr">2025-0144</bdi></div>
+                    </div>
+                  </div>
+                </td>
+                <td>السادس أ</td>
+                <td class="num"><span class="attendance-num" style="color:var(--warning)"><bdi dir="ltr">82%</bdi></span></td>
+                <td><span class="pill overdue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>متأخر</span></td>
+                <td class="num">
+                  <div class="row-actions">
+                    <button title="عرض"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"/><circle cx="12" cy="12" r="3"/></svg></button>
+                    <button title="المزيد"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/></svg></button>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <div class="student-cell">
+                    <div class="avatar">م س</div>
+                    <div>
+                      <div class="student-name">مريم عبد الرزاق السعدي</div>
+                      <div class="student-sub">رقم القيد: <bdi dir="ltr">2025-0145</bdi></div>
+                    </div>
+                  </div>
+                </td>
+                <td>السادس أ</td>
+                <td class="num"><span class="attendance-num" style="color:var(--success)"><bdi dir="ltr">95%</bdi></span></td>
+                <td><span class="pill paid"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>مدفوع</span></td>
+                <td class="num">
+                  <div class="row-actions">
+                    <button title="عرض"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"/><circle cx="12" cy="12" r="3"/></svg></button>
+                    <button title="المزيد"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/></svg></button>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <div class="student-cell">
+                    <div class="avatar">ح ت</div>
+                    <div>
+                      <div class="student-name">حسين علاء التميمي</div>
+                      <div class="student-sub">رقم القيد: <bdi dir="ltr">2025-0146</bdi></div>
+                    </div>
+                  </div>
+                </td>
+                <td>السادس أ</td>
+                <td class="num"><span class="attendance-num" style="color:var(--success)"><bdi dir="ltr">98%</bdi></span></td>
+                <td><span class="pill paid"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>مدفوع</span></td>
+                <td class="num">
+                  <div class="row-actions">
+                    <button title="عرض"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"/><circle cx="12" cy="12" r="3"/></svg></button>
+                    <button title="المزيد"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/></svg></button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- recent activity -->
+        <div class="panel">
+          <div class="panel-head">
+            <h3>النشاط الأخير</h3>
+            <a href="#">عرض الكل ←</a>
+          </div>
+          <div class="activity-list">
+
+            <div class="activity-item">
+              <span class="activity-dot success">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+              </span>
+              <div class="activity-body">
+                <p>تم دفع قسط بقيمة <span class="money"><bdi dir="ltr">750,000 د.ع</bdi></span> من ولي أمر الطالب <strong>علي حسين الكناني</strong></p>
+                <time>قبل <bdi dir="ltr">12</bdi> دقيقة</time>
+              </div>
+            </div>
+
+            <div class="activity-item">
+              <span class="activity-dot info">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 7 10 6 10-6"/></svg>
+              </span>
+              <div class="activity-body">
+                <p>رسالة جديدة من ولية أمر الطالبة <strong>زينب مهدي العبودي</strong> بخصوص الغياب</p>
+                <time>قبل <bdi dir="ltr">38</bdi> دقيقة</time>
+              </div>
+            </div>
+
+            <div class="activity-item">
+              <span class="activity-dot success">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="m9 16 2 2 4-4"/></svg>
+              </span>
+              <div class="activity-body">
+                <p>تم تسجيل حضور الصف <strong>السادس أ</strong> — <bdi dir="ltr">28</bdi> من أصل <bdi dir="ltr">30</bdi> طالباً</p>
+                <time>قبل ساعة واحدة</time>
+              </div>
+            </div>
+
+            <div class="activity-item">
+              <span class="activity-dot warning">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
+              </span>
+              <div class="activity-body">
+                <p>قسط الطالب <strong>يوسف كريم الدليمي</strong> متأخر منذ <bdi dir="ltr">5</bdi> أيام</p>
+                <time>قبل ساعتين</time>
+              </div>
+            </div>
+
+            <div class="activity-item">
+              <span class="activity-dot success">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20v-6M6 20V10M18 20V4"/></svg>
+              </span>
+              <div class="activity-body">
+                <p>تم رصد درجات مادة الرياضيات لطلبة <strong>الخامس ب</strong></p>
+                <time>أمس، <bdi dir="ltr">4:20</bdi> م</time>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </section>
+
+    </main>
+  </div>
+
+</div>
+
+<footer class="mockup-note">
+  نموذج تصميم ثابت — docs/design/mockup-dashboard.html · الألوان والخطوط والمسافات مطابقة لـ docs/DESIGN_SYSTEM.md
+</footer>
+
+</body>
+</html>

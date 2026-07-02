@@ -1,0 +1,354 @@
+// School ERP — Phase 1 core schema.
+// Tenancy: every tenant-scoped model carries `tenantId` (= School.id) + `@@index([tenantId])`.
+// Enforcement of tenant scoping happens in application code (see src/prisma/tenant-scoping.ts),
+// NOT via Postgres Row-Level Security yet (planned for a later phase per docs/ARCHITECTURE.md).
+//
+// Do NOT add attendance/grades/fees models here — Phase 1 only.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// Enums
+// ============================================================
+
+enum StageType {
+  KINDERGARTEN
+  PRIMARY
+  INTERMEDIATE
+  SECONDARY
+}
+
+enum MembershipStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum EnrollmentStatus {
+  ACTIVE
+  TRANSFERRED
+  WITHDRAWN
+  GRADUATED
+  COMPLETED
+}
+
+enum GuardianRelation {
+  FATHER
+  MOTHER
+  BROTHER
+  SISTER
+  UNCLE
+  AUNT
+  GRANDFATHER
+  GRANDMOTHER
+  LEGAL_GUARDIAN
+  OTHER
+}
+
+// ============================================================
+// Platform-level models — NOT tenant-scoped.
+// Organization/School define tenants; User is platform-unique;
+// Permission is a global catalog. None of these carry tenantId.
+// ============================================================
+
+model Organization {
+  id        String   @id @default(uuid())
+  name      String
+  ownerId   String?
+  owner     User?    @relation("OrganizationOwner", fields: [ownerId], references: [id])
+  schools   School[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model School {
+  id             String        @id @default(uuid())
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  name           String
+  slug           String        @unique
+  stageTypes     StageType[]
+  timezone       String        @default("Asia/Baghdad")
+  settings       Json          @default("{}")
+  isActive       Boolean       @default(true)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  memberships      Membership[]
+  roles            Role[]
+  rolePermissions  RolePermission[]
+  academicYears    AcademicYear[]
+  gradeLevels      GradeLevel[]
+  sections         Section[]
+  subjects         Subject[]
+  students         Student[]
+  guardians        Guardian[]
+  studentGuardians StudentGuardian[]
+  enrollments      Enrollment[]
+}
+
+model User {
+  id           String   @id @default(uuid())
+  phone        String?  @unique
+  email        String?  @unique
+  passwordHash String
+  fullName     String
+  /// UI locale preference: "ar" | "ckb" | "en" (ar-first product).
+  locale       String   @default("ar")
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  ownedOrganizations Organization[]  @relation("OrganizationOwner")
+  memberships        Membership[]
+  guardianProfiles   Guardian[]
+  refreshTokens      RefreshToken[]
+
+  @@index([phone])
+  @@index([email])
+}
+
+model Permission {
+  id          String   @id @default(uuid())
+  /// Stable machine key, e.g. "students.read", "fees.collect".
+  key         String   @unique
+  description String?
+  category    String
+  createdAt   DateTime @default(now())
+
+  rolePermissions RolePermission[]
+}
+
+model RefreshToken {
+  id                  String    @id @default(uuid())
+  userId              String
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// SHA-256 hash of the opaque refresh token — the raw token is never persisted.
+  tokenHash           String    @unique
+  expiresAt           DateTime
+  revokedAt           DateTime?
+  replacedByTokenHash String?
+  createdAt           DateTime  @default(now())
+
+  @@index([userId])
+}
+
+// ============================================================
+// Tenant-scoped models — every one carries `tenantId` (School.id)
+// and is auto-filtered/auto-stamped by the Prisma tenant-scoping
+// extension (src/prisma/tenant-scoping.ts). Direct Prisma calls
+// on these models MUST run inside TenantContext or the extension
+// throws TenantContextMissingError.
+// ============================================================
+
+model Membership {
+  id        String           @id @default(uuid())
+  tenantId  String
+  school    School           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roleId    String
+  role      Role             @relation(fields: [roleId], references: [id])
+  status    MembershipStatus @default(ACTIVE)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@unique([tenantId, userId, roleId])
+  @@index([tenantId])
+  @@index([userId])
+}
+
+model Role {
+  id        String   @id @default(uuid())
+  tenantId  String
+  school    School   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  /// Stable machine key, e.g. "owner", "teacher" — unique per school.
+  key       String
+  name      String
+  isSystem  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships     Membership[]
+  rolePermissions RolePermission[]
+
+  @@unique([tenantId, key])
+  @@index([tenantId])
+}
+
+model RolePermission {
+  id           String     @id @default(uuid())
+  tenantId     String
+  school       School     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  roleId       String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permissionId String
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+
+  @@unique([roleId, permissionId])
+  @@index([tenantId])
+}
+
+model AcademicYear {
+  id        String   @id @default(uuid())
+  tenantId  String
+  school    School   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  /// e.g. "2025-2026"
+  name      String
+  startDate DateTime
+  endDate   DateTime
+  isActive  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sections    Section[]
+  enrollments Enrollment[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+}
+
+model GradeLevel {
+  id        String    @id @default(uuid())
+  tenantId  String
+  school    School    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name      String
+  stage     StageType
+  /// Sort order across stages, e.g. 1 = أول ابتدائي.
+  order     Int
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  sections    Section[]
+  subjects    Subject[]
+  enrollments Enrollment[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+}
+
+model Section {
+  id             String       @id @default(uuid())
+  tenantId       String
+  school         School       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  academicYearId String
+  academicYear   AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+  gradeLevelId   String
+  gradeLevel     GradeLevel   @relation(fields: [gradeLevelId], references: [id], onDelete: Cascade)
+  /// e.g. "أ", "ب" (شعبة)
+  name           String
+  capacity       Int?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  enrollments Enrollment[]
+
+  @@unique([tenantId, academicYearId, gradeLevelId, name])
+  @@index([tenantId])
+}
+
+model Subject {
+  id           String      @id @default(uuid())
+  tenantId     String
+  school       School      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  gradeLevelId String?
+  gradeLevel   GradeLevel? @relation(fields: [gradeLevelId], references: [id], onDelete: SetNull)
+  name         String
+  code         String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@unique([tenantId, name, gradeLevelId])
+  @@index([tenantId])
+}
+
+model Student {
+  id            String    @id @default(uuid())
+  tenantId      String
+  school        School    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  /// Human-readable per-school student number (not globally unique).
+  studentNumber String
+  fullName      String
+  dateOfBirth   DateTime?
+  gender        Gender?
+  nationalId    String?
+  address       String?
+  photoUrl      String?
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  studentGuardians StudentGuardian[]
+  enrollments      Enrollment[]
+
+  @@unique([tenantId, studentNumber])
+  @@index([tenantId])
+  @@index([tenantId, fullName])
+}
+
+model Guardian {
+  id        String   @id @default(uuid())
+  tenantId  String
+  school    School   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  /// Optional link to a platform User account (guardians may also just be contact records).
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  fullName  String
+  phone     String?
+  email     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  studentGuardians StudentGuardian[]
+
+  @@index([tenantId])
+}
+
+model StudentGuardian {
+  id         String           @id @default(uuid())
+  tenantId   String
+  school     School           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  studentId  String
+  student    Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  guardianId String
+  guardian   Guardian         @relation(fields: [guardianId], references: [id], onDelete: Cascade)
+  relation   GuardianRelation
+  isPrimary  Boolean          @default(false)
+  createdAt  DateTime         @default(now())
+
+  @@unique([studentId, guardianId])
+  @@index([tenantId])
+}
+
+model Enrollment {
+  id             String           @id @default(uuid())
+  tenantId       String
+  school         School           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  studentId      String
+  student        Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  academicYearId String
+  academicYear   AcademicYear     @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+  gradeLevelId   String
+  gradeLevel     GradeLevel       @relation(fields: [gradeLevelId], references: [id])
+  sectionId      String?
+  section        Section?         @relation(fields: [sectionId], references: [id])
+  status         EnrollmentStatus @default(ACTIVE)
+  enrolledAt     DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@unique([tenantId, studentId, academicYearId])
+  @@index([tenantId])
+}
