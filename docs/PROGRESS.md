@@ -1151,3 +1151,229 @@ running API.
   with Docker should run to close this gap. No `apps/api` changes were
   made or are required to unblock it; it's purely an environment
   limitation, not a code issue.
+
+## 2026-07-03 — frontend-dev (nav + academics + add-student)
+
+Fixed both user-reported bugs (dead sidebar links, dead "إضافة طالب" button)
+and built the four remaining nav destinations against the now-LIVE
+`apps/api` (Postgres reachable, demo tenant seeded) — first session where
+the full stack could be exercised end-to-end over real HTTP instead of
+build-only verification. `apps/api` treated strictly as read-only reference.
+`pnpm exec tsc --noEmit` and `pnpm lint` both clean; every claim below was
+checked against the running dev server (`localhost:3000`) and API
+(`localhost:3001`), not inferred from code alone — see "Live verification" below.
+Never ran `next build` (would clobber the user's running dev server), per
+instruction.
+
+**What was built**
+
+- **Sidebar/mobile-drawer nav fix (issue 1)**: all 7 items now point at real
+  routes instead of `#` stubs — `sections → /academics`, `attendance →
+  /attendance`, `grades → /grades`, `installments → /fees`, `settings →
+  /settings` (`dashboard`/`students` were already real).
+  `components/layout/sidebar.tsx`'s active-state check simplified (the
+  `item.href !== "#"` guard is now dead code since nothing is `#` anymore).
+  `MobileNav` reuses the same `SidebarNavList`, so the drawer fixed itself
+  for free.
+- **Add Student, end-to-end (issue 2 + task A)**: `components/students/
+  add-student-dialog.tsx` — accessible dialog via a newly hand-written
+  `components/ui/dialog.tsx` (Radix `@radix-ui/react-dialog`, added as a new
+  dependency — focus trap, Escape, and backdrop-click all come from the
+  primitive for free). Fields match `CreateStudentDto`
+  (`apps/api/src/students/dto/create-student.dto.ts`) exactly:
+  `studentNumber`/`fullName` required, `dateOfBirth`/`gender`/`nationalId`/
+  `address` optional. `actions/students.ts`'s `createStudentAction` (server
+  action, `useActionState`) calls `POST /students` via a new
+  `createStudent()` in `lib/api/students.ts`, shows translated field errors
+  (studentNumber/fullName) and general errors (incl.
+  `STUDENT_NUMBER_TAKEN`) the same way `login-form.tsx` does, and on success
+  calls `revalidatePath("/students")` + closes the dialog (`DialogContent`
+  unmounts on close with no `forceMount`, so `useActionState` naturally
+  resets next open — no manual reset code needed).
+- **`/academics` page (task B)** — real CRUD UI for all 4 academics
+  sub-resources, stacked `Card` sections (chose stacked over tabs: keeps
+  everything server-rendered by default, no extra client JS for tab
+  switching): السنوات الدراسية / المراحل الدراسية / الشعب / المواد. Page
+  itself (`app/(dashboard)/academics/page.tsx`) is a server component doing
+  one `Promise.all` of all 4 `GET`s; each section
+  (`components/academics/*-section.tsx`) is also server-rendered, receiving
+  data as props and importing two small client leaves per section: an
+  `Add*Dialog` (same `useActionState` + Radix-dialog pattern as
+  add-student) and a new generic `DeleteRowButton` (confirm dialog +
+  `useTransition`, calls the bound server action — e.g.
+  `deleteAcademicYearAction.bind(null, id)` — directly, the same
+  direct-server-action-call pattern already used by
+  `language-switcher.tsx`'s `setLocaleAction`). Sections need
+  `academicYearId`/`gradeLevelId` selects populated from the other two
+  lists — `AddSectionDialog` takes `years`/`grades` as props from the
+  parent page fetch (no extra round trip); the "add section" button is
+  hidden (replaced by `sectionsPrereqHint`) until at least one year and one
+  grade level exist, since the DTO requires both FKs. `Section`/`Subject`
+  list endpoints return bare FK-id scalars (no `include`, confirmed by
+  reading `sections.service.ts`/`subjects.service.ts`) — resolved to
+  display names client-side via `Map` lookups built from the same
+  `Promise.all` fetch, no extra endpoint needed. New `components/ui/
+  select.tsx`: a plain native `<select>` (NOT Radix Select) for the 4
+  enum/FK pickers (gender, stage, academicYearId, gradeLevelId) — zero
+  extra dependency/client JS, drops straight into `FormData`, accessible by
+  default. New `components/ui/empty-state.tsx` (icon + title + description
+  + optional action) shared by every empty list here and by C's pages.
+  **Non-obvious API contract, verified live with `curl`/`Invoke-RestMethod`
+  BEFORE writing the actions** (`ValidationPipe` runs `transform: true` but
+  not implicit conversion): numeric DTO fields (`GradeLevel.order`,
+  `Section.capacity`) must be sent as real JSON numbers (`Number(raw)`),
+  not strings; blank `@IsOptional()` fields (`capacity`, `gradeLevelId`,
+  `dateOfBirth`, `gender` — also applies to Add Student) must be omitted
+  entirely, NOT sent as `""` — an empty string still fails
+  `@IsDateString`/`@IsEnum`/`@IsUUID` even though the field is optional.
+  Documented this trap in both `lib/api/students.ts` and the action files
+  so it isn't rediscovered by trial and error later. Added a shared
+  `mapValidationFieldErrors()` helper to `lib/api/translate-error.ts`
+  (extracted from the add-student action's original inline version) so
+  every create action re-expresses `VALIDATION_ERROR`'s raw class-validator
+  messages as our own translated per-field copy without duplicating the
+  matching logic 5×.
+- **Attendance / Grades / Fees pages (task C)** — real routes
+  (`/attendance`, `/grades`, `/fees`), each a plain `EmptyState` (muted
+  icon + one-line Arabic description, no faked data, no dead button). Per
+  the task's explicit override of DESIGN_SYSTEM §7.5 ("no dead buttons"),
+  these deliberately have NO action button — §7.5 normally requires one,
+  but there is nothing real to link a CTA to since these modules have no
+  backend yet.
+- **Settings page (task D)** — `/settings`: profile card (name/email/phone
+  via a new `lib/api/users.ts`'s `getMe()` → `GET /users/me`), role card,
+  the existing `LanguageSwitcher` reused inline (not re-implemented), and a
+  logout button (`logoutAction` in a real `<form>`, same pattern as
+  `UserMenu`). **Role sourcing gap**: `GET /users/me` does NOT return a
+  role (verified live — `User` is platform-level/shared across schools,
+  role lives on the per-school `Membership`); only `POST /auth/login`'s
+  response body has `user.roleKey`. Persisted it at login time in a new
+  `role_key` cookie (`cookie-config.ts`/`tokens.ts`'s `setRoleKeyCookie`/
+  `getRoleKey`/`clearRoleKeyCookie`, called explicitly from
+  `loginAction`/`logoutAction` — deliberately NOT folded into the shared
+  `setAuthCookies()`, since `middleware.ts`'s proactive-refresh path writes
+  its own cookies via `NextResponse` and never sees `user.roleKey` in the
+  refresh response; wiring it into `setAuthCookies` would make the label
+  silently go stale on some refreshes but not others). Mapped through a
+  new `dict.roles` namespace (owner/principal/registrar/accountant/
+  teacher/parent/student — the 7 roles from `rbac/default-roles.ts`,
+  translated for all 3 locales since the API's own `Role.name` is
+  Arabic-only). **School name gap, left unimplemented per "nothing
+  speculative"**: there is no endpoint a non-platform-admin user can call
+  for the school's own name/settings (`POST /tenants` is platform-admin
+  only; neither `/users/me` nor login return it) — omitted from the page
+  rather than falling back to `mock-data.ts`'s `mockSchool.name`, and
+  flagged below as an API gap instead.
+- **i18n**: every new string added to all 3 dictionaries in the same pass
+  (`ar.ts`/`ckb.ts`/`en.ts`), enforced by `Dictionary`'s structural typing —
+  `tsc` would fail on any missing key in any locale. New top-level
+  sections: `academics` (~50 keys), `attendance`/`grades`/`fees`
+  (heading + empty-state description each), `settings`, `roles`; `common`
+  gained shared verbs (`save`/`cancel`/`delete`/`deleteConfirmTitle`
+  with a `{item}` placeholder/etc.) reused across every new dialog instead
+  of duplicating per-domain strings; `students` gained the add-dialog's
+  field labels/placeholders/errors.
+
+**Live verification (`localhost:3000` web + `localhost:3001` API, demo
+tenant `b82becb5-b4fa-49cc-b48c-e22e507ef541`, owner login)**
+
+- Route protection: `/dashboard /students /academics /attendance /grades
+  /fees /settings` all → `200` with a valid session, all → `307 → /login`
+  with none (checked both, all 7).
+- Sidebar hrefs on the live-rendered `/dashboard` HTML: confirmed all 7
+  point at real paths (`href="/academics"` etc.), zero `href="#"` left.
+- **Add Student, fully live**: `POST /students` with the exact body
+  `createStudentAction` builds (blank optionals omitted, `gender` as a
+  real enum value) → `201`; `GET /students?search=...` immediately shows
+  it; then confirmed the SAME row renders on the actual `/students` page
+  HTML (name + registry no. both present). Student count went 5 → 6
+  (`مصطفى قاسم الزبيدي`, `2026-0006`), left in place as a working example.
+  Also live-confirmed the coercion trap itself before writing any code:
+  `gender: ""` → `VALIDATION_ERROR`, `gender` omitted → `201`; same for
+  `dateOfBirth`.
+- **Academics, fully live**: created one real academic year
+  (`2026-2027`, `isActive: true`), one grade level (`الأول الابتدائي`,
+  `PRIMARY`, `order: 1`), two sections (one with `capacity` omitted →
+  confirmed `capacity: null` back, one with `capacity: 30` as a real
+  number → confirmed `30` back, not `"30"`), and one subject with
+  `gradeLevelId` omitted (confirmed `null` → renders as "كل المراحل").
+  Deleted one section via `DELETE /sections/:id` → `204`, confirmed it
+  dropped out of the list — proves the delete contract
+  `DeleteRowButton`/`deleteSectionAction` rely on. Confirmed all of this
+  renders correctly on the live `/academics` page HTML (year/grade/
+  section/subject names, capacity `30`, "نشطة" active badge, "كل
+  المراحل" all-grades label, exactly 4 delete-trigger buttons, all 4
+  add-buttons). Also live-triggered two real `VALIDATION_ERROR` responses
+  (`name` too short, `order: 0`) to confirm the raw class-validator
+  messages actually contain the substrings (`"name"`, `"order"`) my
+  `mapValidationFieldErrors` patterns match on. Left this data in place as
+  a coherent demo structure rather than deleting it after the check.
+- Settings page: live HTML contains the real logged-in user's name
+  (`أحمد الجبوري`) and email (`admin@alnoor-demo.iq`) from `GET
+  /users/me`, and the correct translated role label ("مالك المدرسة") from
+  the `role_key=owner` cookie.
+- Attendance/Grades/Fees: live HTML contains the "تحت التطوير" empty
+  state, no dead buttons.
+- Locale spot-check: `/academics`, `/settings`, `/fees` all → `200` under
+  `locale=en` (confirmed `dir="ltr"` + English heading text present) and
+  `locale=ckb`.
+- Not verified: dialog focus-trap/Escape/backdrop-close and the delete
+  confirm dialog's click interaction specifically — no browser-automation
+  tool is available in this environment (consistent with every prior
+  frontend-dev session's disclosed limitation). Confidence here comes from
+  (a) Radix `Dialog` supplying these behaviors natively — this is exactly
+  what the primitive is for, not custom code, and (b) the identical
+  Radix-based pattern already shipped and used successfully in
+  `dropdown-menu.tsx`/`mobile-nav.tsx` in prior sessions.
+
+**Key decisions**
+
+- Native `<select>` over Radix Select for the 4 enum/FK dropdowns — no new
+  dependency, no client JS beyond what the dialog already ships, and it's
+  a plain `FormData` field like every other input (a Radix combobox-style
+  select would need extra plumbing to participate in a native form POST).
+- Stacked `Card` sections over tabs for `/academics` — all 4 lists are
+  small (this demo tenant: 1 row each) and a tenant's academic structure
+  doesn't change often; tabs would hide 3 of 4 sections behind a click for
+  no real benefit here and add a client component just for tab state.
+- `role_key` cookie kept deliberately separate from the existing
+  `access_token`/`refresh_token` cookies and NOT threaded through the
+  shared `setAuthCookies()` — see "Settings page" above. It's
+  display-only, never used for an authorization decision (every real
+  permission check still happens server-side via the JWT).
+- Reused `getApiErrorMessage`/`ApiError`/`unstable_rethrow` exactly as
+  the existing students page does for every new server action and the new
+  `/academics` page's top-level fetch — same NEXT_REDIRECT-swallowing bug
+  class the prior session already found and fixed once; didn't reintroduce
+  it in 5 new call sites.
+
+**API changes needed (none made — apps/api is read-only for this task)**
+
+1. No endpoint returns the school's own name/settings to an authenticated
+   non-platform-admin user (needed for a real "school name" row on
+   `/settings`, which this session deliberately omitted rather than
+   faking).
+2. `GET /users/me` doesn't return the caller's role for the current
+   school — worked around via a login-time cookie (`user.roleKey` from
+   the login response body), but a first-class `GET /users/me` (or a
+   dedicated `/memberships/me`) that includes role would remove the need
+   for that workaround and keep the label fresh across token refreshes.
+
+**Post-review fixes (same session, pre-report self-review)**
+- `EmptyState` gained a `bare` prop: it renders as a `Card` by default (used
+  standalone by attendance/grades/fees), but the 4 academics sections now
+  pass `bare` so the empty state renders as a plain `div` instead of a
+  `Card`-inside-a-`Card` — the section itself is already a `Card`, so the
+  un-fixed version showed a double-bordered box whenever a section had zero
+  rows (not visible in the current demo-tenant state, since all 4 lists
+  ended up with 1 row each — a genuinely empty tenant would have shown it).
+- Added a one-line `DialogDescription` to all 4 academics `Add*Dialog`s
+  (new `*AddDescription` dictionary keys, all 3 locales) — `add-student-
+  dialog.tsx` already had one; the academics dialogs didn't, which Radix
+  flags as an a11y-completeness warning (missing `Description`/
+  `aria-describedby`) in dev.
+
+**Blockers**
+
+- None. `pnpm exec tsc --noEmit` and `pnpm lint` both clean; every new
+  route live-verified against the real API per above.

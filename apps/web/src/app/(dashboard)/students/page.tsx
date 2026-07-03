@@ -6,7 +6,6 @@ import {
   ChevronLeft,
   ChevronRight,
   CircleOff,
-  Plus,
   Search,
   UserRoundSearch,
 } from "lucide-react";
@@ -19,6 +18,7 @@ import { ApiError } from "@/lib/api/errors";
 import { listStudents, type ApiStudent } from "@/lib/api/students";
 import { getApiErrorMessage } from "@/lib/api/translate-error";
 import { formatDate } from "@/lib/format";
+import { AddStudentDialog } from "@/components/students/add-student-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -65,10 +65,7 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
             </button>
           </form>
 
-          <Button>
-            <Plus aria-hidden />
-            {dict.students.addButton}
-          </Button>
+          <AddStudentDialog labels={dict.students} common={dict.common} />
         </div>
       </div>
 

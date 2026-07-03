@@ -6,7 +6,13 @@ import { getLocaleAndDictionary } from "@/i18n";
 import { apiLogin, apiLogout } from "@/lib/api/auth";
 import { ApiError } from "@/lib/api/errors";
 import { getApiErrorMessage } from "@/lib/api/translate-error";
-import { clearAuthCookies, getRefreshToken, setAuthCookies } from "@/lib/api/tokens";
+import {
+  clearAuthCookies,
+  clearRoleKeyCookie,
+  getRefreshToken,
+  setAuthCookies,
+  setRoleKeyCookie,
+} from "@/lib/api/tokens";
 
 export interface LoginFormState {
   generalError?: string;
@@ -51,6 +57,9 @@ export async function loginAction(_prevState: LoginFormState, formData: FormData
   }
 
   await setAuthCookies(tokens);
+  // Display-only role label (see cookie-config.ts) — only the login/refresh
+  // response body carries `user.roleKey`; `GET /users/me` doesn't.
+  await setRoleKeyCookie(tokens.user.roleKey);
   redirect("/dashboard");
 }
 
@@ -61,6 +70,7 @@ export async function logoutAction(): Promise<void> {
     await apiLogout(refreshToken).catch(() => undefined);
   }
   await clearAuthCookies();
+  await clearRoleKeyCookie();
   redirect("/login");
 }
 

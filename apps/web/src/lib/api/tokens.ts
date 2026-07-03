@@ -5,6 +5,7 @@ import {
   ACCESS_TOKEN_COOKIE,
   REFRESH_TOKEN_COOKIE,
   REFRESH_TOKEN_MAX_AGE_SECONDS,
+  ROLE_KEY_COOKIE,
   TENANT_COOKIE,
   parseExpiresInSeconds,
 } from "./cookie-config";
@@ -60,4 +61,26 @@ export async function clearAuthCookies(): Promise<void> {
   const store = await cookies();
   store.delete(ACCESS_TOKEN_COOKIE);
   store.delete(REFRESH_TOKEN_COOKIE);
+}
+
+/**
+ * Display-only role label (see `cookie-config.ts`'s `ROLE_KEY_COOKIE` doc
+ * comment). Deliberately separate from `setAuthCookies`/`clearAuthCookies` —
+ * called explicitly by `loginAction`/`logoutAction` only, NOT by
+ * `middleware.ts`'s proactive-refresh path (which writes its own cookies via
+ * `NextResponse` and never sees `user.roleKey` in the refresh response).
+ */
+export async function setRoleKeyCookie(roleKey: string): Promise<void> {
+  const store = await cookies();
+  store.set(ROLE_KEY_COOKIE, roleKey, { ...baseCookieOptions, maxAge: REFRESH_TOKEN_MAX_AGE_SECONDS });
+}
+
+export async function clearRoleKeyCookie(): Promise<void> {
+  const store = await cookies();
+  store.delete(ROLE_KEY_COOKIE);
+}
+
+export async function getRoleKey(): Promise<string | undefined> {
+  const store = await cookies();
+  return store.get(ROLE_KEY_COOKIE)?.value;
 }

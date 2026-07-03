@@ -29,11 +29,11 @@ interface NavItem {
 const navItems: NavItem[] = [
   { key: "dashboard", href: "/dashboard", icon: LayoutDashboard },
   { key: "students", href: "/students", icon: Users },
-  { key: "sections", href: "#", icon: Layers },
-  { key: "attendance", href: "#", icon: CalendarCheck },
-  { key: "grades", href: "#", icon: BarChart3 },
-  { key: "installments", href: "#", icon: Wallet },
-  { key: "settings", href: "#", icon: Settings },
+  { key: "sections", href: "/academics", icon: Layers },
+  { key: "attendance", href: "/attendance", icon: CalendarCheck },
+  { key: "grades", href: "/grades", icon: BarChart3 },
+  { key: "installments", href: "/fees", icon: Wallet },
+  { key: "settings", href: "/settings", icon: Settings },
 ];
 
 interface SidebarNavListProps {
@@ -55,7 +55,7 @@ export function SidebarNavList({ labels, collapsed = false, onNavigate }: Sideba
     <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto p-3">
       {navItems.map((item) => {
         const Icon = item.icon;
-        const active = item.href !== "#" && pathname.startsWith(item.href);
+        const active = pathname.startsWith(item.href);
         return (
           <Link
             key={item.key}

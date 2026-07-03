@@ -43,3 +43,23 @@ export function listStudents(params: ListStudentsParams = {}): Promise<Paginated
   const qs = query.toString();
   return apiFetch<Paginated<ApiStudent>>(`/students${qs ? `?${qs}` : ""}`);
 }
+
+/**
+ * Mirrors `CreateStudentDto` (`apps/api/src/students/dto/create-student.dto.ts`)
+ * field-for-field. Optional fields MUST be omitted (not sent as `""`) when
+ * blank — `@IsOptional()` only skips `null`/`undefined`, an empty string still
+ * fails `@IsDateString`/`@IsEnum` (verified live against the running API).
+ */
+export interface CreateStudentInput {
+  studentNumber: string;
+  fullName: string;
+  dateOfBirth?: string;
+  gender?: ApiGender;
+  nationalId?: string;
+  address?: string;
+}
+
+/** `POST /api/v1/students` */
+export function createStudent(input: CreateStudentInput): Promise<ApiStudent> {
+  return apiFetch<ApiStudent>("/students", { method: "POST", body: input });
+}

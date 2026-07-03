@@ -16,6 +16,20 @@ export const REFRESH_TOKEN_COOKIE = "refresh_token";
 export const TENANT_COOKIE = "tenant";
 
 /**
+ * The current membership's role key (e.g. "owner"), for DISPLAY ONLY (never
+ * an authorization decision — permissions are always re-verified server-side
+ * via the JWT). `GET /users/me` doesn't return it (a `User` is
+ * platform-level, shared across schools; role is per-`Membership`) — only
+ * `POST /auth/login`'s response body includes it, so it's persisted here at
+ * login time. Deliberately NOT refreshed by `POST /auth/refresh` (its
+ * response omits `user` entirely, see `middleware.ts`'s `RefreshedTokens`
+ * type) — a role changing mid-session and this label going briefly stale
+ * until the next login is an acceptable simplification for a display-only
+ * value.
+ */
+export const ROLE_KEY_COOKIE = "role_key";
+
+/**
  * The API never echoes the refresh token's own TTL back in the
  * `/auth/refresh` response body (only the access token's `expiresIn`), so
  * this mirrors apps/api's `JWT_REFRESH_EXPIRES_IN_DAYS` default. Keep in
