@@ -12,3 +12,4 @@ coverage/
 Thumbs.db
 generated/
 .claude/settings.local.json
+docker-compose.override.yml
